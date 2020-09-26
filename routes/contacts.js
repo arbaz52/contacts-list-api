@@ -1,5 +1,24 @@
 var express = require("express")
 var router = express.Router()
+var jwt = require("jsonwebtoken")
+
+
+
+const getJWTToken = (req) => {
+    if (!req.headers.authorization)
+        return null
+
+    let rawToken = req.headers.authorization
+    rawToken = rawToken.split(" ")[1] //removing the "Bearer" keyword
+
+
+    try {
+        return jwt.verify(rawToken, process.env.SUPER_SECRET_KEY)
+    } catch (err) {
+        console.error(err)
+        return null
+    }
+}
 
 //to generate errors
 var createError = require('http-errors');
@@ -7,15 +26,26 @@ var createError = require('http-errors');
 //contacts
 var Contact = require("./../mongodb/Contact")
 
+
+router.use((req, res, next) => {
+    let token = getJWTToken(req)
+    if (!token)
+        return next(createError(403, "You need to login first or invalid login session"))
+
+    req.token = token
+    return next()
+})
+
 //get a list of all the contacts
 router.get("/", (req, res, next) => {
-    Contact.find({}, (err, data) => {
+
+    Contact.find({ userId: req.token._id }, (err, data) => {
         //if error occurs, return error
         if (err)
             return next(err)
 
 
-        //return list of users
+        //return list of contacts
         res.json(data)
     })
 })
@@ -33,7 +63,7 @@ router.post("/", (req, res, next) => {
 
 
     //add a new contact
-    Contact.create({ name, mobile }, (err, data) => {
+    Contact.create({ name, mobile, userId: req.token._id }, (err, data) => {
         //if error occurs, return error
         if (err)
             return next(err)
@@ -55,14 +85,13 @@ router.put("/:contactId", (req, res, next) => {
     if (req.body.mobile)
         update = { ...update, mobile: req.body.mobile }
 
-
-    Contact.findById(contactId, (err, data) => {
+    Contact.find({ _id: contactId, userId: req.token._id }, (err, data) => {
         //if error occurs, return error
         if (err)
             return next(err)
 
         //record does not exist
-        if (!data)
+        if (!data || data.length == 0)
             return next(createError(404, "Contact not found!"))
 
 
@@ -75,7 +104,7 @@ router.put("/:contactId", (req, res, next) => {
             res.json(
                 {
                     message: "Sucessfully updated contact!",
-                    contact: {...data._doc, ...update}
+                    contact: { ...data._doc, ...update }
                 }
             )
         })
@@ -86,13 +115,13 @@ router.put("/:contactId", (req, res, next) => {
 router.delete("/:contactId", (req, res, next) => {
     let contactId = req.params.contactId
 
-    Contact.findById(contactId, (err, data) => {
+    Contact.find({ _id: contactId, userId: req.token._id }, (err, data) => {
         //if error occurs, return error
         if (err)
             return next(err)
 
         //record does not exist
-        if (!data)
+        if (!data || data.length == 0)
             return next(createError(404, "Contact not found!"))
 
         Contact.findByIdAndDelete(contactId, (err, data) => {

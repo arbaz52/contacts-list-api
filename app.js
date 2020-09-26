@@ -1,3 +1,4 @@
+require('dotenv').config() //setting up environment variables
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -7,6 +8,7 @@ var cors = require("cors")
 
 //routes here
 var contactsRouter = require("./routes/contacts")
+var usersRouter = require("./routes/users")
 
 var app = express();
 
@@ -22,6 +24,7 @@ app.use(cors())
 
 //connecting routes here
 app.use("/contacts", contactsRouter)
+app.use("/users", usersRouter)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -37,6 +40,8 @@ app.use(function(err, req, res, next) {
   // render the error page
   res.status(err.status || 500);
   res.json(err)
+
+  console.log(err)
 });
 
 module.exports = app;

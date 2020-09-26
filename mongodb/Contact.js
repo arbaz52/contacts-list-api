@@ -11,6 +11,10 @@ var Contact = new Schema({
     mobile: {
         type: String,
         required: true
+    },
+    userId: {
+        type: Schema.Types.ObjectId,
+        required: true
     }
 })
 
